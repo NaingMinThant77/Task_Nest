@@ -1,0 +1,63 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Role {
+  id         Int          @id @default(autoincrement())
+  name       String       @db.VarChar(255)
+  permission Permission[]
+  users      User[]
+  createdAt  DateTime     @default(now()) @map("create_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+}
+
+model Permission {
+  id        Int      @id @default(autoincrement())
+  resource  Resource
+  actions   Json     @default("[]")
+  roles     Role[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  role      Role     @relation(fields: [roleId], references: [id]) // Belong To
+  roleId    Int      @default(1) @map("role_id")
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tasks     Task[] //One To Many
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @default(1) @map("user_id")
+  name        String   @db.VarChar(255)
+  description String   @db.Text()
+  status      String   @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+enum Resource {
+  USERS
+  TASKS
+}
+
+enum Action {
+  CREATE
+  SHOW
+  READ
+  UPDATE
+  DELETE
+}
