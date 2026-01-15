@@ -60,3 +60,9 @@ enum Action {
   UPDATE
   DELETE
 }
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  DONE
+}

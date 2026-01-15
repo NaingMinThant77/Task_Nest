@@ -56,6 +56,15 @@ export const Action: {
 
 export type Action = (typeof Action)[keyof typeof Action]
 
+
+export const Status: {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  DONE: 'DONE'
+};
+
+export type Status = (typeof Status)[keyof typeof Status]
+
 }
 
 export type Resource = $Enums.Resource
@@ -65,6 +74,10 @@ export const Resource: typeof $Enums.Resource
 export type Action = $Enums.Action
 
 export const Action: typeof $Enums.Action
+
+export type Status = $Enums.Status
+
+export const Status: typeof $Enums.Status
 
 /**
  * ##  Prisma Client ʲˢ
