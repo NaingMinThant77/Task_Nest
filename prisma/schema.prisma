@@ -1,5 +1,5 @@
 generator client {
-   provider      = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -43,7 +43,7 @@ model Task {
   userId      Int      @default(1) @map("user_id")
   name        String   @db.VarChar(255)
   description String   @db.Text()
-  status      String   @db.VarChar(255)
+  status      Status
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 }

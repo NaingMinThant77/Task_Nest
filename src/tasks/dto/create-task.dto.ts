@@ -1,9 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
-import { IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEnum, IsInt, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { Status } from '@prisma/client';
 
 export class CreateTaskDto {
+    @IsInt()
+    userId: number;
+
     @IsString()
     @MinLength(4, {message: "The name is too short"})
     @IsNotEmpty({message: "The name is required"})
