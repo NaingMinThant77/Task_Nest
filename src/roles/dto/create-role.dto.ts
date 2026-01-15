@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Type } from "class-transformer";
 import { IsEnum, IsString, MinLength, ValidateNested } from "class-validator";
-import { Action, Resource } from "src/generated/prisma";
+import { Action, Resource } from "@prisma/client";
 
 export class CreateRoleDto {
     @IsString()

@@ -1,7 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-import { IsEmail, IsNotEmpty, IsString, Matches, MinLength } from "class-validator";
+import { IsEmail, IsInt, IsNotEmpty, IsString, Matches, MinLength } from "class-validator";
 
 export class CreateUserDto {
+    @IsInt()
+    roleId: number;
+
     @IsString()
     @MinLength(4)
     @IsNotEmpty({message: "The name is required"})

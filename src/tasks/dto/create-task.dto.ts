@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 import { IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { Status } from 'src/generated/prisma';
+import { Status } from '@prisma/client';
 
 export class CreateTaskDto {
     @IsString()
