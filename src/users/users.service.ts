@@ -1,6 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto, UpdateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
@@ -33,20 +32,20 @@ export class UsersService {
     return user;
   }
 
-  findAll(): Promise<User[]> {
-    return this.prismaService.user.findMany();
+  async findAll(): Promise<User[]> {
+    return await this.prismaService.user.findMany();
   }
 
-  findOne(id: number): Promise<User | null> {
-    return this.prismaService.user.findUnique({
+  async findOne(id: number): Promise<User | null> {
+    return await this.prismaService.user.findUnique({
       where: {
         id
       }
     });
   }
 
-  update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    return this.prismaService.user.update({
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    return await this.prismaService.user.update({
       where: {
         id
       },
@@ -54,8 +53,8 @@ export class UsersService {
     });
   }
 
-  remove(id: number): Promise<User> {
-    return this.prismaService.user.delete({
+  async remove(id: number): Promise<User> {
+    return await this.prismaService.user.delete({
       where: {
         id
       }

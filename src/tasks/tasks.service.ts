@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 import { Task } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -30,24 +29,24 @@ export class TasksService {
     return task;
   }
 
-  findAll(): Promise<Task[]> {
-    return this.prismaService.task.findMany({
+  async findAll(): Promise<Task[]> {
+    return await this.prismaService.task.findMany({
       include: {
         user: true
       }
     });
   }
 
-  findOne(id: number): Promise<Task | null> {
-    return this.prismaService.task.findUnique({
+  async findOne(id: number): Promise<Task | null> {
+    return await this.prismaService.task.findUnique({
       where: {
         id
       }
     });
   }
 
-  update(id: number, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    return this.prismaService.task.update({
+  async update(id: number, updateTaskDto: UpdateTaskDto): Promise<Task> {
+    return await this.prismaService.task.update({
       where: {
         id
       },
@@ -55,8 +54,8 @@ export class TasksService {
     });
   }
 
-  remove(id: number): Promise<Task> {
-    return this.prismaService.task.delete({
+  async remove(id: number): Promise<Task> {
+    return await this.prismaService.task.delete({
       where: {
         id
       }

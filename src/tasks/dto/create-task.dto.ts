@@ -1,20 +1,48 @@
-import { IsEnum, IsInt, IsNotEmpty, IsString, MinLength } from 'class-validator';
+// import { IsEnum, IsInt, IsNotEmpty, IsString, MinLength } from 'class-validator';
+// import { Status } from '@prisma/client';
+
+// export class CreateTaskDto {
+//     @IsInt()
+//     userId: number;
+
+//     @IsString()
+//     @MinLength(4, {message: "The name is too short"})
+//     @IsNotEmpty({message: "The name is required"})
+//     name: string;
+
+//     @IsString()
+//     @MinLength(10, {message: "The description is too short"})
+//     @IsNotEmpty({message: "The description is required"})
+//     description: string;
+
+//     @IsEnum(Status)
+//     status: Status;
+// }
+
+import * as yup from 'yup';
 import { Status } from '@prisma/client';
 
-export class CreateTaskDto {
-    @IsInt()
-    userId: number;
+export const CreateTaskSchema = yup.object({
+  userId: yup.number()
+    .integer()
+    .required("User ID is required"),
+    
+  name: yup.string()
+    .min(4, "The name must be at least 4 characters")
+    .required("The name is required"),
+    
+  description: yup.string()
+    .min(10, "The description must be at least 10 characters")
+    .required("The description is required"),
+    
+  // Link this to your Prisma Enum
+  status: yup.mixed<Status>()
+    .oneOf(Object.values(Status), "Invalid status value")
+    .required("Status is required"),
+});
 
-    @IsString()
-    @MinLength(4, {message: "The name is too short"})
-    @IsNotEmpty({message: "The name is required"})
-    name: string;
+// Derived types for your service and controller
+export const UpdateTaskSchema = CreateTaskSchema.partial();
 
-    @IsString()
-    @MinLength(10, {message: "The description is too short"})
-    @IsNotEmpty({message: "The description is required"})
-    description: string;
-
-    @IsEnum(Status)
-    status: Status;
-}
+export type CreateTaskDto = yup.InferType<typeof CreateTaskSchema>;
+export type UpdateTaskDto = yup.InferType<typeof UpdateTaskSchema>;
