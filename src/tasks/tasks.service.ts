@@ -35,14 +35,24 @@ export class TasksService {
   const limit = Number(pagination.limit) || 10;
   const skip = (page - 1) * limit;
 
+  const search = pagination.search || '';
+  const where = search ? {
+    name: { contains: search },
+  } : {};
+
+  // Define the sort order
+  const sortBy = pagination.sortBy || 'createdAt';
+  const sortOrder = pagination.sortOrder === 'asc' ? 'asc' : 'desc';
+
   const [data, total] = await Promise.all([
     this.prismaService.task.findMany({
+      where,
       skip,
       take: limit,
       include: { user: true },
-      orderBy: { createdAt: 'desc' }, // Newest tasks first
+      orderBy: { [sortBy]: sortOrder }, // Newest tasks first
     }),
-    this.prismaService.task.count(),
+    this.prismaService.task.count({where}),
   ]);
 
   return {

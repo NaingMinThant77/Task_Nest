@@ -1,4 +1,7 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto, LoginDto, UpdateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -76,18 +79,52 @@ export class UsersService {
   const limit = Number(pagination.limit) || 10;
   const skip = (page - 1) * limit;
 
+  const search = pagination.search || '';
+  const name = pagination.name || '';
+  const email = pagination.email || '';
+  // Define the search filter
+  // const where = search ? {
+  //   OR: [
+  //     { email: { contains: search } }, // Prisma mode insensitive is default in some DBs, or add:
+  //     { name: { contains: search } },
+  //   ],
+  // } : {};
+
+  // Advanced filtering logic
+  const where: any = { AND: [] };
+
+  // 1. If global search is used
+  if (search) {
+    where.AND.push({
+      OR: [
+        { name: { contains: search } },
+        { email: { contains: search } }
+      ]
+    });
+  }
+
+  // 2. If specific name/email filters are used
+  if (name) where.AND.push({ name: { contains: name } });
+  if (email) where.AND.push({ email: { contains: email } });
+
+  // Define the sort order
+  const sortBy = pagination.sortBy || 'createdAt';
+  const sortOrder = pagination.sortOrder === 'asc' ? 'asc' : 'desc';
+
   const [data, total] = await Promise.all([
     this.prismaService.user.findMany({
+      where: where.AND.length > 0 ? where : {}, //where,
       skip,
       take: limit,
+      orderBy: { [sortBy]: sortOrder },
       select: { // Don't return passwords in the list
         id: true,
         name: true,
         email: true,
-        role: true,
+       role: { select: { name: true } },
       },
     }),
-    this.prismaService.user.count(),
+    this.prismaService.user.count({ where: where.AND.length > 0 ? where : {} }),
   ]);
 
   return { data, meta: { total, page, lastPage: Math.ceil(total / limit) } };
@@ -95,7 +132,7 @@ export class UsersService {
 
   async getProfile(id: number): Promise<any> {
     const user = await this.prismaService.user.findUnique({
-      where: { id },
+      where: { id: Number(id) },
       select: {
         id: true,
         name: true,
@@ -108,6 +145,10 @@ export class UsersService {
         },
       },
     });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return user;
   }
 

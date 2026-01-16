@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { type CreateUserDto, CreateUserSchema, type LoginDto, LoginSchema, type UpdateUserDto, UpdateUserSchema } from './dto/create-user.dto';
 import { UseSchema } from 'src/common/decorators/use-schema.decorator';
@@ -23,7 +25,7 @@ export class UsersController {
     return this.usersService.login(dto);
   }
 
-  @Get() // http://localhost:3000/users?page=1&limit=2
+  @Get() // http://localhost:3000/users?page=1&limit=2&search=John&id=desc
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN') // Only Admin can see the full list
   @UseSchema(PaginationSchema)
@@ -31,8 +33,15 @@ findAll(@Query() pagination: PaginationDto) {
   return this.usersService.findAll(pagination);
 }
 
+ @UseGuards(JwtAuthGuard)
+  @Get('me/profile') // MUST be above @Get(':id')
+  getMe(@Request() req) {
+    // In JwtStrategy we used: payload.sub
+    return this.usersService.getProfile(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  @UseGuards(JwtAuthGuard) // Any logged-in user can view a profile
   findOne(@Param('id') id: string) {
     return this.usersService.getProfile(+id);
   }
