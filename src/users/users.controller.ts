@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { type CreateUserDto, CreateUserSchema, type LoginDto, LoginSchema, type UpdateUserDto, UpdateUserSchema } from './dto/create-user.dto';
 import { UseSchema } from 'src/common/decorators/use-schema.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
+import { type PaginationDto, PaginationSchema } from 'src/common/dto/pagination.dto';
 
 @Controller('users')
 export class UsersController {
@@ -22,12 +23,13 @@ export class UsersController {
     return this.usersService.login(dto);
   }
 
-  @Get()
+  @Get() // http://localhost:3000/users?page=1&limit=2
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN') // Only Admin can see the full list
-  findAll() {
-    return this.usersService.findAll();
-  }
+  @UseSchema(PaginationSchema)
+findAll(@Query() pagination: PaginationDto) {
+  return this.usersService.findAll(pagination);
+}
 
   @Get(':id')
   @UseGuards(JwtAuthGuard) // Any logged-in user can view a profile

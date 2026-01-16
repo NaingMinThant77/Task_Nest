@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable() 
 export class UsersService {
@@ -70,9 +71,27 @@ export class UsersService {
     };
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.prismaService.user.findMany();
-  }
+  async findAll(pagination: PaginationDto) {
+  const page = Number(pagination.page) || 1;
+  const limit = Number(pagination.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    this.prismaService.user.findMany({
+      skip,
+      take: limit,
+      select: { // Don't return passwords in the list
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    }),
+    this.prismaService.user.count(),
+  ]);
+
+  return { data, meta: { total, page, lastPage: Math.ceil(total / limit) } };
+}
 
   async getProfile(id: number): Promise<any> {
     const user = await this.prismaService.user.findUnique({

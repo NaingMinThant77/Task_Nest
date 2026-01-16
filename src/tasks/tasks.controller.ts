@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { type CreateTaskDto, CreateTaskSchema, type UpdateTaskDto, UpdateTaskSchema } from './dto/create-task.dto';
 import { UseSchema } from 'src/common/decorators/use-schema.decorator';
 import { JwtAuthGuard } from 'src/users/guards/jwt-auth.guard';
+import { PaginationSchema, type PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard) // Everything in this controller requires login
@@ -16,9 +17,10 @@ export class TasksController {
   }
 
   @Get()
-  findAll() {
-    return this.tasksService.findAll();
-  }
+  @UseSchema(PaginationSchema) // Validates ?page=X&limit=Y
+findAll(@Query() pagination: PaginationDto) {
+  return this.tasksService.findAll(pagination);
+}
 
   @Get(':id')
   findOne(@Param('id') id: string) {
