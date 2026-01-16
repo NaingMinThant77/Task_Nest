@@ -1,9 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { type CreateRoleDto, CreateRoleSchema, type UpdateRoleDto, UpdateRoleSchema } from './dto/create-role.dto';
 import { UseSchema } from 'src/common/decorators/use-schema.decorator';
+import { JwtAuthGuard } from 'src/users/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/users/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
 
 @Controller('roles')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN') // This ensures ALL methods below require Admin role
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
