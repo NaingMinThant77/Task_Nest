@@ -44,6 +44,12 @@ export const CreateUserSchema = yup.object({
 // This is the equivalent of PartialType() in NestJS
 export const UpdateUserSchema = CreateUserSchema.partial();
 
+export const LoginSchema = yup.object({
+  email: yup.string().email("Invalid email").required("Email is required"),
+  password: yup.string().required("Password is required"),
+});
+
 // 3. Export Types for TypeScript
 export type CreateUserDto = yup.InferType<typeof CreateUserSchema>;
 export type UpdateUserDto = yup.InferType<typeof UpdateUserSchema>;
+export type LoginDto = yup.InferType<typeof LoginSchema>;
