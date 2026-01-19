@@ -28,7 +28,6 @@ import * as yup from 'yup';
 
 // 1. Define the core validation rules
 export const CreateUserSchema = yup.object({
-  roleId: yup.number().integer().required("Role ID is required"),
   name: yup.string().min(4, "The name must be at least 4 characters").required(),
   email: yup.string().email("Invalid email format").required(),
   password: yup.string()

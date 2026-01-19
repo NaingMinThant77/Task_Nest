@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {  Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto, LoginDto, UpdateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -14,15 +14,16 @@ export class UsersService {
   constructor(private readonly prismaService: PrismaService, private jwtService: JwtService,) {}
 
   async register(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.prismaService.user.findUnique({
-      where: {
-        email: createUserDto.email
-      }
-    })
 
-    if (existingUser) {
-      throw new ConflictException('User already exists');
-    }
+    // const existingUser = await this.prismaService.user.findUnique({
+    //   where: {
+    //     email: createUserDto.email
+    //   }
+    // })
+
+    // if (existingUser) {
+    //   throw new ConflictException('User already exists');
+    // }
 
     const passwordHash = await bcrypt.hash(createUserDto.password, 10);
     const user = this.prismaService.user.create({
@@ -30,7 +31,7 @@ export class UsersService {
         name: createUserDto.name,
         email: createUserDto.email,
         password: passwordHash,
-        roleId: createUserDto.roleId
+        roleId: 2
       }
     })
 
@@ -91,21 +92,23 @@ export class UsersService {
   // } : {};
 
   // Advanced filtering logic
-  const where: any = { AND: [] };
+const conditions: any[] = [];
 
   // 1. If global search is used
   if (search) {
-    where.AND.push({
-      OR: [
-        { name: { contains: search } },
-        { email: { contains: search } }
-      ]
-    });
-  }
+  conditions.push({
+    OR: [
+      { name: { contains: search } },
+      { email: { contains: search } }
+    ]
+  });
+}
 
-  // 2. If specific name/email filters are used
-  if (name) where.AND.push({ name: { contains: name } });
-  if (email) where.AND.push({ email: { contains: email } });
+if (name) conditions.push({ name: { contains: name } });
+if (email) conditions.push({ email: { contains: email } });
+
+// Finally, only add AND if there are conditions:
+const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
 
   // Define the sort order
   const sortBy = pagination.sortBy || 'createdAt';
@@ -113,7 +116,7 @@ export class UsersService {
 
   const [data, total] = await Promise.all([
     this.prismaService.user.findMany({
-      where: where.AND.length > 0 ? where : {}, //where,
+      where: finalWhere, //where,
       skip,
       take: limit,
       orderBy: { [sortBy]: sortOrder },
@@ -122,9 +125,11 @@ export class UsersService {
         name: true,
         email: true,
        role: { select: { name: true } },
+        createdAt: true,
+        updatedAt: true
       },
     }),
-    this.prismaService.user.count({ where: where.AND.length > 0 ? where : {} }),
+    this.prismaService.user.count({ where: finalWhere }),
   ]);
 
   return { data, meta: { total, page, lastPage: Math.ceil(total / limit) } };
@@ -143,6 +148,8 @@ export class UsersService {
             permission: true,
           },
         },
+        createdAt: true,
+        updatedAt: true
       },
     });
     if (!user) {

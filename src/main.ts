@@ -6,11 +6,11 @@ import { YupValidationInterceptor } from './common/interceptiors/yup-validation.
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // app.enableCors({
-  //   origin: 'http://localhost:5173', // Default Vite port (update to yours)
-  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  //   credentials: true,
-  // });
+  app.enableCors({
+    origin: 'http://localhost:3001', 
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
 
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(new YupValidationInterceptor(reflector));
