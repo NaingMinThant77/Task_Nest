@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {  Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto, LoginDto, UpdateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable() 
 export class UsersService {
@@ -74,6 +73,47 @@ export class UsersService {
       }
     };
   }
+
+async updateProfilePhoto(userId: number, newFilename: string) {
+  const user = await this.prismaService.user.findUnique({
+    where: { id: userId },
+    select: { profilePhoto: true },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  // Delete old photo
+  if (user.profilePhoto) {
+    const oldPath = path.join(
+      process.cwd(),
+      'uploads',
+      'profiles',
+      user.profilePhoto,
+    );
+
+    if (fs.existsSync(oldPath)) {
+      fs.unlinkSync(oldPath);
+    }
+  }
+
+  // Update user
+  const updatedUser = await this.prismaService.user.update({
+    where: { id: userId },
+    data: { profilePhoto: newFilename },
+    select: {
+      id: true,
+      name: true,
+      profilePhoto: true,
+    },
+  });
+
+  return {
+    ...updatedUser,
+    profilePhotoUrl: `${process.env.APP_URL}/uploads/profiles/${updatedUser.profilePhoto}`
+
+  };
+}
+
 
   async findAll(pagination: PaginationDto) {
   const page = Number(pagination.page) || 1;

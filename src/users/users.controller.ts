@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Request, UseInterceptors, BadRequestException, UploadedFile } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { type CreateUserDto, CreateUserSchema, type LoginDto, LoginSchema, type UpdateUserDto, UpdateUserSchema } from './dto/create-user.dto';
 import { UseSchema } from 'src/common/decorators/use-schema.decorator';
@@ -8,6 +8,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { type PaginationDto, PaginationSchema } from 'src/common/dto/pagination.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from 'src/common/helpers/multer-config.helper';
 
 @Controller('users')
 export class UsersController {
@@ -23,6 +25,18 @@ export class UsersController {
   @UseSchema(LoginSchema)
   login(@Body() dto: LoginDto) {
     return this.usersService.login(dto);
+  }
+
+  @Post('upload-profile')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', multerOptions('profiles')))
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @Request() req) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    // Save the file path to the user in the database
+    return this.usersService.updateProfilePhoto(req.user.userId, file.filename);
   }
 
   @Get() // http://localhost:3000/users?page=1&limit=2&search=John&id=desc
