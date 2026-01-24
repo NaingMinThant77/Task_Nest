@@ -23,7 +23,11 @@ import * as yup from 'yup';
 import { Status } from '@prisma/client';
 
 export const CreateTaskSchema = yup.object({
+  // Use .transform to handle strings coming from form-data
   userId: yup.number()
+    .transform((value, originalValue) => {
+      return originalValue === "" ? undefined : Number(value);
+    })
     .integer()
     .required("User ID is required"),
     
@@ -39,6 +43,12 @@ export const CreateTaskSchema = yup.object({
   status: yup.mixed<Status>()
     .oneOf(Object.values(Status), "Invalid status value")
     .required("Status is required"),
+
+  deleteFileIds: yup.lazy((val) => 
+    Array.isArray(val) 
+      ? yup.array().of(yup.number()) 
+      : yup.mixed().transform(v => v ? [Number(v)] : [])
+  ).optional(),
 });
 
 // Derived types for your service and controller

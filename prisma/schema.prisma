@@ -26,27 +26,38 @@ model Permission {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  role      Role     @relation(fields: [roleId], references: [id]) // Belong To
-  roleId    Int      @default(1) @map("role_id")
-  name      String   @db.VarChar(255)
-  email     String   @unique @db.VarChar(255)
+  id           Int      @id @default(autoincrement())
+  role         Role     @relation(fields: [roleId], references: [id]) // Belong To
+  roleId       Int      @default(1) @map("role_id")
+  name         String   @db.VarChar(255)
+  email        String   @unique @db.VarChar(255)
   profilePhoto String?  @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  tasks     Task[] //One To Many
+  password     String   @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  tasks        Task[] //One To Many
 }
 
 model Task {
-  id          Int      @id @default(autoincrement())
-  user        User     @relation(fields: [userId], references: [id])
-  userId      Int      @default(1) @map("user_id")
-  name        String   @db.VarChar(255)
-  description String   @db.Text()
+  id          Int          @id @default(autoincrement())
+  user        User         @relation(fields: [userId], references: [id])
+  userId      Int          @default(1) @map("user_id")
+  name        String       @db.VarChar(255)
+  description String       @db.Text()
   status      Status
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  attachments Attachment[] // One-to-many
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  path      String
+  mimetype  String
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 enum Resource {
