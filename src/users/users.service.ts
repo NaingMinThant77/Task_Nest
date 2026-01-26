@@ -1,4 +1,4 @@
-import {  Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {  Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto, LoginDto, UpdateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -7,10 +7,12 @@ import { JwtService } from '@nestjs/jwt';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from '@nestjs/cache-manager'
 
 @Injectable() 
 export class UsersService {
-  constructor(private readonly prismaService: PrismaService, private jwtService: JwtService,) {}
+  constructor(private readonly prismaService: PrismaService, private jwtService: JwtService, @Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   async register(createUserDto: CreateUserDto): Promise<User> {
 
@@ -61,6 +63,9 @@ export class UsersService {
       role: user.role.name 
     };
 
+    // Clear user cache on login to ensure they have fresh permissions
+    await this.cacheManager.del(`user_profile_${user.id}`);
+
     // 4. Return the token and user info for the Frontend state
     return {
       access_token: this.jwtService.sign(payload),
@@ -95,6 +100,7 @@ async updateProfilePhoto(userId: number, newFilename: string) {
       fs.unlinkSync(oldPath);
     }
   }
+  
 
   // Update user
   const updatedUser = await this.prismaService.user.update({
@@ -107,6 +113,7 @@ async updateProfilePhoto(userId: number, newFilename: string) {
     },
   });
 
+  await this.cacheManager.del(`user_profile_${userId}`); // Invalidate Cache
   return {
     ...updatedUser,
     profilePhotoUrl: `${process.env.APP_URL}/uploads/profiles/${updatedUser.profilePhoto}`
@@ -176,6 +183,10 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
 }
 
   async getProfile(id: number): Promise<any> {
+        const cacheKey = `user_profile_${id}`;
+    const cachedUser = await this.cacheManager.get(cacheKey);
+    if (cachedUser) return cachedUser;
+
     const user = await this.prismaService.user.findUnique({
       where: { id: Number(id) },
       select: {
@@ -196,6 +207,8 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
       throw new NotFoundException('User not found');
     }
 
+   await this.cacheManager.set(cacheKey, user, 1800000); // Cache for 30 mins
+       console.log('Setting cache for key:', cacheKey)
     return user;
   }
 

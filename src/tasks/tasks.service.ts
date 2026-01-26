@@ -1,14 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Query, UseInterceptors } from '@nestjs/common';
 import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 import { Task } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { type PaginationDto } from 'src/common/dto/pagination.dto';
 import * as fs from 'fs';
 import { join } from 'path';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from '@nestjs/cache-manager';
+import { CacheLoggingInterceptor } from 'src/common/interceptiors/cache-logging.interceptor';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService, @Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+
+  // Helper to clear task-related cache
+  private async clearTaskCache(id?: number) {
+    await this.cacheManager.del('tasks_all'); // Clear list cache
+    if (id) await this.cacheManager.del(`task_${id}`); // Clear specific item cache
+  }
 
   async create(createTaskDto: CreateTaskDto, files: Express.Multer.File[] = []): Promise<Task> {
     const userId = await this.prismaService.user.findUnique({
@@ -34,10 +43,17 @@ export class TasksService {
     include: { attachments: true }
   });
 
+    await this.clearTaskCache();
     return task;
   }
 
-  async findAll(pagination: PaginationDto) {
+  @UseInterceptors(CacheLoggingInterceptor)
+  async findAll(@Query() pagination: PaginationDto) {
+   // We create a unique key based on pagination/search params
+    const cacheKey = `tasks_all:${JSON.stringify(pagination)}`;
+    const cachedData = await this.cacheManager.get(cacheKey);
+    if (cachedData) return cachedData;
+
   const page = Number(pagination.page) || 1;
   const limit = Number(pagination.limit) || 10;
   const skip = (page - 1) * limit;
@@ -62,22 +78,33 @@ export class TasksService {
     this.prismaService.task.count({where}),
   ]);
 
-  return {
-    data,
-    meta: {
-      total,
-      page,
-      lastPage: Math.ceil(total / limit),
-    },
-  };
+  const result = {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+
+    await this.cacheManager.set(cacheKey, result, 300000); // Cache list for 5 mins
+    return result;
 }
 
   async findOne(id: number): Promise<Task | null> {
-    return await this.prismaService.task.findUnique({
-      where: {
-        id
-      }
+    const cacheKey = `task_${id}`;
+    const cachedTask = await this.cacheManager.get<Task>(cacheKey);
+    
+    if (cachedTask) return cachedTask;
+
+    // 2. If not in Redis, get from Database
+    const task = await this.prismaService.task.findUnique({
+      where: { id },
+      include: { attachments: true }
     });
+
+    // 3. Save to Redis for 1 hour (3600000 ms)
+    if (task) {
+      await this.cacheManager.set(cacheKey, task, 3600000);
+    }
+
+    return task;
   }
 
   async update(id: number, updateTaskDto: UpdateTaskDto, newFiles: Express.Multer.File[] = [], deleteFileIds?: number[]) {
@@ -98,7 +125,7 @@ export class TasksService {
     }
 
     // 2. Update task and add new files
-    return this.prismaService.task.update({
+    const updatedTask = this.prismaService.task.update({
       where: { id },
       data: {
         ...updateTaskDto,
@@ -112,6 +139,9 @@ export class TasksService {
       },
       include: { attachments: true }
     });
+
+    await this.clearTaskCache(id);
+    return updatedTask;
   }
 
   async remove(id: number): Promise<Task> {
@@ -138,9 +168,8 @@ export class TasksService {
       }
     }
 
-    // 3. Delete from Database (Cascading will handle Attachment records if set in Prisma)
-    return await this.prismaService.task.delete({
-      where: { id }
-    });
+    const deletedTask = await this.prismaService.task.delete({ where: { id } });
+    await this.clearTaskCache(id);
+    return deletedTask;
   }
 }
