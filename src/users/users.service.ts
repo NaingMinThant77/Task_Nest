@@ -208,8 +208,7 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
     }
 
    await this.cacheManager.set(cacheKey, user, 1800000); // Cache for 30 mins
-       console.log('Setting cache for key:', cacheKey)
-    return user;
+   return user;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,24 +10,22 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
-  imports: [CacheModule.registerAsync({
-      isGlobal: true, // This makes CACHE_MANAGER available in all modules
+  imports: [
+    CacheModule.registerAsync({
+      isGlobal: true, // This is crucial so AppService picks it up
       useFactory: async () => {
-  const store = await redisStore({
-    socket: {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    },
-    ttl: 600000, // 600000 = 10 minutes
-    keyPrefix: '',  // 👈 remove "cache:"
-  });
+        const store = await redisStore({
+          socket: {
+            host: process.env.REDIS_HOST || 'localhost',
+            port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+          },
+        });
 
-  // Add this to catch connection errors in your Docker logs
-  store.client.on('error', (err) => console.error('Redis Client Error', err));
-  store.client.on('connect', () => console.log('Successfully connected to Redis'));
-
-  return { store };
-},
+        return {
+          store: store as any, // Cast to any to avoid v5/v11 type conflicts
+          ttl: 600000, // 10 minute
+        };
+      },
     }),
     UsersModule, TasksModule, RolesModule, PrismaModule],
   controllers: [AppController],

@@ -13,7 +13,7 @@ services:
 
   # Your Redis Server
   cache_server:
-    image: redis:7-alpine
+    image: redis
     ports:
       - "6379:6379"
 
