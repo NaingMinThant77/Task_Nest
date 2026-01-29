@@ -36,6 +36,9 @@ export class UsersService {
       }
     })
 
+    const keys = await this.cacheManager.store.keys('users_list_*');
+    await Promise.all(keys.map(key => this.cacheManager.del(key)));
+
     return user;
   }
 
@@ -65,6 +68,8 @@ export class UsersService {
 
     // Clear user cache on login to ensure they have fresh permissions
     await this.cacheManager.del(`user_profile_${user.id}`);
+    const keys = await this.cacheManager.store.keys('users_list_*');
+    await Promise.all(keys.map(key => this.cacheManager.del(key)));
 
     // 4. Return the token and user info for the Frontend state
     return {
@@ -77,7 +82,7 @@ export class UsersService {
         permissions: user.role.permission
       }
     };
-  }
+}
 
 async updateProfilePhoto(userId: number, newFilename: string) {
   const user = await this.prismaService.user.findUnique({
@@ -101,7 +106,6 @@ async updateProfilePhoto(userId: number, newFilename: string) {
     }
   }
   
-
   // Update user
   const updatedUser = await this.prismaService.user.update({
     where: { id: userId },
@@ -114,6 +118,9 @@ async updateProfilePhoto(userId: number, newFilename: string) {
   });
 
   await this.cacheManager.del(`user_profile_${userId}`); // Invalidate Cache
+  const keys = await this.cacheManager.store.keys('users_list_*');
+  await Promise.all(keys.map(key => this.cacheManager.del(key)));
+
   return {
     ...updatedUser,
     profilePhotoUrl: `${process.env.APP_URL}/uploads/profiles/${updatedUser.profilePhoto}`
@@ -121,8 +128,7 @@ async updateProfilePhoto(userId: number, newFilename: string) {
   };
 }
 
-
-  async findAll(pagination: PaginationDto) {
+async findAll(pagination: PaginationDto) {
   const page = Number(pagination.page) || 1;
   const limit = Number(pagination.limit) || 10;
   const skip = (page - 1) * limit;
@@ -161,6 +167,13 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
   const sortBy = pagination.sortBy || 'createdAt';
   const sortOrder = pagination.sortOrder === 'asc' ? 'asc' : 'desc';
 
+  // 1. Create a unique Cache Key based on all query parameters
+  const cacheKey = `users_list_p${page}_l${limit}_s${search}_n${name}_e${email}_sort${sortBy}_${sortOrder}`;
+  
+  // 2. Try to get data from cache
+  const cachedData = await this.cacheManager.get(cacheKey);
+  if (cachedData) return cachedData;
+
   const [data, total] = await Promise.all([
     this.prismaService.user.findMany({
       where: finalWhere, //where,
@@ -171,7 +184,8 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
         id: true,
         name: true,
         email: true,
-       role: { select: { name: true } },
+        role: { select: { name: true } },
+        profilePhoto: true,
         createdAt: true,
         updatedAt: true
       },
@@ -179,7 +193,18 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
     this.prismaService.user.count({ where: finalWhere }),
   ]);
 
-  return { data, meta: { total, page, lastPage: Math.ceil(total / limit) } };
+  const result = {
+    data,
+    meta: {
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    },
+  };
+
+  await this.cacheManager.set(cacheKey, result, 1800000); // Cache for 30 mins
+
+  return result;
 }
 
   async getProfile(id: number): Promise<any> {
@@ -211,20 +236,26 @@ const finalWhere = conditions.length > 0 ? { AND: conditions } : {};
    return user;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    return await this.prismaService.user.update({
-      where: {
-        id
-      },
-      data: updateUserDto
-    });
-  }
+async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+  const updated = await this.prismaService.user.update({
+    where: { id },
+    data: updateUserDto
+  });
+  await this.cacheManager.del(`user_profile_${id}`); // Keep cache fresh!
+  const keys = await this.cacheManager.store.keys('users_list_*');
+  await Promise.all(keys.map(key => this.cacheManager.del(key)));
+  return updated;
+}
 
   async remove(id: number): Promise<User> {
-    return await this.prismaService.user.delete({
+    const deleted =  await this.prismaService.user.delete({
       where: {
         id
       }
     });
+    await this.cacheManager.del(`user_profile_${id}`); // Keep cache fresh!
+    const keys = await this.cacheManager.store.keys('users_list_*');
+    await Promise.all(keys.map(key => this.cacheManager.del(key)));
+    return deleted;
   }
 }

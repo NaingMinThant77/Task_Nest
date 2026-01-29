@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException, Query, UseInterceptors } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Query } from '@nestjs/common';
 import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 import { Task } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -7,7 +7,6 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from '@nestjs/cache-manager';
-import { CacheLoggingInterceptor } from 'src/common/interceptiors/cache-logging.interceptor';
 
 @Injectable()
 export class TasksService {
@@ -47,7 +46,6 @@ export class TasksService {
     return task;
   }
 
-  @UseInterceptors(CacheLoggingInterceptor)
   async findAll(@Query() pagination: PaginationDto) {
    // We create a unique key based on pagination/search params
     const cacheKey = `tasks_all:${JSON.stringify(pagination)}`;

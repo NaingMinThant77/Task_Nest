@@ -18,7 +18,14 @@ export class RolesService {
   }
 
   async findAll() {
-    return await this.prismaService.role.findMany();
+    return await this.prismaService.role.findMany({
+      include: {
+        permission: true,
+        _count: {
+          select: { users: true },
+        }
+      },
+    });
   }
 
   async findOne(id: number): Promise<Role | null> {
