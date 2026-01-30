@@ -9,7 +9,6 @@ import { RolesGuard } from './guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { type PaginationDto, PaginationSchema } from 'src/common/dto/pagination.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { multerOptions } from 'src/common/helpers/multer-config.helper';
 
 @Controller('users')
 export class UsersController {
@@ -29,14 +28,14 @@ export class UsersController {
 
   @Post('upload-profile')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file', multerOptions('profiles')))
+  @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file: Express.Multer.File, @Request() req) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
 
     // Save the file path to the user in the database
-    return this.usersService.updateProfilePhoto(req.user.userId, file.filename);
+    return this.usersService.updateProfilePhoto(req.user.userId, file);
   }
 
   @Get() // http://localhost:3000/users?page=1&limit=2&search=John&id=desc

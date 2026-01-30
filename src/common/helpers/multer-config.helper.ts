@@ -24,16 +24,11 @@ export const multerOptions = (destination: string) => ({
 });
 
 export const taskMulterOptions = {
-  storage: diskStorage({
-    destination: './uploads/tasks',
-    filename: (req, file, callback) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      callback(null, `file-${uniqueSuffix}${extname(file.originalname)}`);
-    },
-  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
   fileFilter: (req, file, callback) => {
-    if (!file.mimetype.match(/\/(jpg|jpeg|png|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document)$/)) {
-      return callback(new BadRequestException('Unsupported file type!'), false);
+    // Optional: add more mimetypes like 'application/pdf'
+    if (!file.mimetype.match(/\/(jpg|jpeg|png|pdf)$/)) {
+      return callback(new BadRequestException('Only images and PDFs are allowed!'), false);
     }
     callback(null, true);
   },

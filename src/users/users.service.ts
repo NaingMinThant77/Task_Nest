@@ -5,10 +5,9 @@ import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import * as fs from 'fs';
-import * as path from 'path';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from '@nestjs/cache-manager'
+import { deleteFromCloudinary, uploadToCloudinary } from 'src/common/cloudinary';
 
 @Injectable() 
 export class UsersService {
@@ -84,32 +83,25 @@ export class UsersService {
     };
 }
 
-async updateProfilePhoto(userId: number, newFilename: string) {
+async updateProfilePhoto(userId: number, file: Express.Multer.File){
   const user = await this.prismaService.user.findUnique({
     where: { id: userId },
     select: { profilePhoto: true },
   });
-
   if (!user) throw new NotFoundException('User not found');
 
-  // Delete old photo
-  if (user.profilePhoto) {
-    const oldPath = path.join(
-      process.cwd(),
-      'uploads',
-      'profiles',
-      user.profilePhoto,
-    );
-
-    if (fs.existsSync(oldPath)) {
-      fs.unlinkSync(oldPath);
-    }
+  // 1. If user already has a photo, delete it from Cloudinary
+  if (user?.profilePhoto && user.profilePhoto.includes('cloudinary')) {
+    await deleteFromCloudinary(user.profilePhoto);
   }
+
+  // 2. Upload new photo
+  const result = await uploadToCloudinary(file.buffer, file.mimetype, 'profiles');
   
   // Update user
   const updatedUser = await this.prismaService.user.update({
     where: { id: userId },
-    data: { profilePhoto: newFilename },
+    data: { profilePhoto: result.url },
     select: {
       id: true,
       name: true,
@@ -123,8 +115,7 @@ async updateProfilePhoto(userId: number, newFilename: string) {
 
   return {
     ...updatedUser,
-    profilePhotoUrl: `${process.env.APP_URL}/uploads/profiles/${updatedUser.profilePhoto}`
-
+    profilePhotoUrl: updatedUser.profilePhoto
   };
 }
 

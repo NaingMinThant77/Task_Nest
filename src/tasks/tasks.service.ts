@@ -3,10 +3,9 @@ import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 import { Task } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { type PaginationDto } from 'src/common/dto/pagination.dto';
-import * as fs from 'fs';
-import { join } from 'path';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from '@nestjs/cache-manager';
+import { deleteFromCloudinary, uploadToCloudinary } from 'src/common/cloudinary';
 
 @Injectable()
 export class TasksService {
@@ -28,15 +27,22 @@ export class TasksService {
       throw new NotFoundException('User not found');
     }
 
+    // 1. Upload all files (Images or PDFs) to Cloudinary
+  const uploadPromises = files.map(file => 
+    uploadToCloudinary(file.buffer, file.mimetype, 'tasks')
+  );
+  const uploadResults = await Promise.all(uploadPromises);
+
+  // 2. Save URLs and Cloudinary metadata to Database
     const task = await this.prismaService.task.create({
     data: {
      ...createTaskDto,
         attachments: {
-          create: files.map(file => ({
-            filename: file.originalname,
-            path: file.filename,
-            mimetype: file.mimetype
-          }))
+          create: uploadResults.map((result, index) => ({
+          filename: files[index].originalname,
+          path: result.url, // Storing URL instead of local filename
+          mimetype: files[index].mimetype
+        }))
         }
     },
     include: { attachments: true }
@@ -106,21 +112,23 @@ export class TasksService {
   }
 
   async update(id: number, updateTaskDto: UpdateTaskDto, newFiles: Express.Multer.File[] = [], deleteFileIds?: number[]) {
-    // 1. Delete physical files and DB records if requested
-    if (deleteFileIds && deleteFileIds.length > 0) {
-      const filesToDelete = await this.prismaService.attachment.findMany({
-        where: { id: { in: deleteFileIds.map(id => Number(id)) } }
-      });
+    // 1. Handle requested deletions
+  if (deleteFileIds && deleteFileIds.length > 0) {
+    const filesToDelete = await this.prismaService.attachment.findMany({
+      where: { id: { in: deleteFileIds } }
+    });
 
-      for (const file of filesToDelete) {
-        const fullPath = join(process.cwd(), 'uploads', 'tasks', file.path);
-        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-      }
-
-      await this.prismaService.attachment.deleteMany({
-        where: { id: { in: deleteFileIds.map(id => Number(id)) } }
-      });
+    for (const file of filesToDelete) {
+      await deleteFromCloudinary(file.path);
     }
+
+    await this.prismaService.attachment.deleteMany({
+      where: { id: { in: deleteFileIds } }
+    });
+  }
+
+  // 2. Upload and add new files
+  const uploadResults = await Promise.all(newFiles.map(f => uploadToCloudinary(f.buffer, f.mimetype, 'tasks')));
 
     // 2. Update task and add new files
     const updatedTask = this.prismaService.task.update({
@@ -128,11 +136,11 @@ export class TasksService {
       data: {
         ...updateTaskDto,
         attachments: {
-          create: newFiles?.map(file => ({
-            filename: file.originalname,
-            path: file.filename,
-            mimetype: file.mimetype
-          }))
+          create: uploadResults.map((res, i) => ({
+          filename: newFiles[i].originalname,
+          path: res.url,
+          mimetype: newFiles[i].mimetype
+        }))
         }
       },
       include: { attachments: true }
@@ -143,7 +151,7 @@ export class TasksService {
   }
 
   async remove(id: number): Promise<Task> {
-    // 1. Find the task and its attachments first
+    // Find the task and its attachments first
     const task = await this.prismaService.task.findUnique({
       where: { id },
       include: { attachments: true }
@@ -151,20 +159,12 @@ export class TasksService {
 
     if (!task) throw new NotFoundException('Task not found');
 
-    // 2. Delete physical files from the disk
-    if (task.attachments && task.attachments.length > 0) {
-      for (const file of task.attachments) {
-        const fullPath = join(process.cwd(), 'uploads', 'tasks', file.path);
-        try {
-          if (fs.existsSync(fullPath)) {
-            fs.unlinkSync(fullPath);
-          }
-        } catch (err) {
-          console.error(`Failed to delete file: ${fullPath}`, err);
-          // We continue so the DB record can still be deleted
-        }
-      }
+   // Delete every attachment from Cloudinary
+  if (task?.attachments) {
+    for (const file of task.attachments) {
+      await deleteFromCloudinary(file.path); // file.path stores the Cloudinary URL
     }
+  }
 
     const deletedTask = await this.prismaService.task.delete({ where: { id } });
     await this.clearTaskCache(id);
