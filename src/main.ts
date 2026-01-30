@@ -37,6 +37,6 @@ async function bootstrap() {
 
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(new YupValidationInterceptor(reflector));
-  await app.listen(process.env.PORT || 4000, '0.0.0.0');
+  await app.listen(process.env.PORT || 3007, '0.0.0.0');
 }
 bootstrap();
