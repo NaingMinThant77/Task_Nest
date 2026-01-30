@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 
 dotenv.config({ path: ".env" });
 cloudinary.config({
@@ -10,19 +12,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const uploadToCloudinary = async (fileBuffer: Buffer, mimetype: string, folder_name: string) => {
-  // Convert Buffer to Base64 with Data URI prefix
-  const base64Data = `data:${mimetype};base64,${fileBuffer.toString('base64')}`;
-  
-  const response = await cloudinary.uploader.upload(base64Data, { 
-    folder: folder_name,
-    resource_type: 'auto', // Important: allows PDFs and other files
-  });
+// Define what the upload function returns
+interface CloudinaryResponse {
+  url: string;
+  public_id: string;
+}
 
-  return {
-    url: response.secure_url,
-    public_id: response.public_id,
-  };
+export const uploadToCloudinary = async (fileBuffer: Buffer, mimetype: string, folder_name: string): Promise<CloudinaryResponse> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: folder_name,
+        resource_type: 'auto',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({
+          url: result!.secure_url,
+          public_id: result!.public_id,
+        });
+      }
+    );
+
+    // Write the buffer to the stream
+    const stream = new Readable();
+    stream.push(fileBuffer);
+    stream.push(null);
+    stream.pipe(uploadStream);
+  });
 };
 
 const getCloudinaryDetails = (url: string) => {

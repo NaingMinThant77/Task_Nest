@@ -5,12 +5,14 @@ import { YupValidationInterceptor } from './common/interceptiors/yup-validation.
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import * as fs from 'fs';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors({
     origin: [
+    'http://localhost:3000',
     'http://localhost:3001', 
     'http://localhost:4000', 
   ],
@@ -29,8 +31,12 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
+  // Increase payload limits for Base64 strings
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(new YupValidationInterceptor(reflector));
-  await app.listen(process.env.PORT || 3000, '0.0.0.0');
+  await app.listen(process.env.PORT || 4000, '0.0.0.0');
 }
 bootstrap();

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -24,11 +25,12 @@ export const multerOptions = (destination: string) => ({
 });
 
 export const taskMulterOptions = {
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
+  limits: { fileSize: 10 * 1024 * 1024 }, // Increase to 10MB for PDFs
   fileFilter: (req, file, callback) => {
-    // Optional: add more mimetypes like 'application/pdf'
-    if (!file.mimetype.match(/\/(jpg|jpeg|png|pdf)$/)) {
-      return callback(new BadRequestException('Only images and PDFs are allowed!'), false);
+    // Check for specific mimetypes more reliably
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return callback(new BadRequestException('Only images (jpg, png) and PDFs are allowed!'), false);
     }
     callback(null, true);
   },
